@@ -1,2 +1,3 @@
 # AdvancedPython-Simulator
  Simple Python simulator. 
+Either a simple molecular dynamics routine will be implemented, or a diffusion simulation... 

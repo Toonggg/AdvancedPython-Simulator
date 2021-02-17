@@ -1,0 +1,939 @@
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%  Generating particle positions %%%%%%%%%%%%%%%
+%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear all;
+close all;
+clc;
+
+visual = 1; % boolean for plotting particle trajectories
+save_var = 0; % boolean to save Matlab Workspace variables for analysis of kinetic coefficients
+save_var_2 = 0; % boolean to save variables needed for statistical difference testing
+
+if save_var == 1
+    
+    folderName = uigetdir();
+    
+end
+
+if save_var_2 == 1
+    
+    folderName_2 = uigetdir();
+    
+end
+
+maxLoop = 1;
+numBins = 200;
+tStart = 0;
+tEnd = 10;
+nStep = 201;
+dT= (tEnd - tStart) / (nStep - 1);
+
+rIn = 10.5;
+rOut = 12;
+r1 = rIn - 4;
+r2 = rIn - 3;
+
+N = 3;
+
+theta = linspace(0 , 2 * pi , nStep - 1);
+
+xIn = rIn * cos(theta(1 : nStep - 1));
+yIn = rIn * sin(theta(1 : nStep - 1));
+
+rdIn = [];
+rdOut = [];
+
+xOut = rOut * cos(theta(1 : nStep - 1));
+yOut = rOut * sin(theta(1 : nStep - 1));
+
+rC = 100;
+[xS , yS , zS] = sphere(rC / 5 - 1);
+
+D = 1 * 4.5;
+% D = kB*T / 6 * pi * eta * R
+% kBT = 4.11 * 10 ^ - 21 % units in J @25 degrees
+% eta = 8.9 * 10 ^ - 4 % water viscosity
+% R = 25 * 10 ^ - 9 % approximate size of typical mRNP particle
+
+C = 1;
+nP = 1;
+scFac = sqrt(2 * C * D * dT);
+%%
+% Dimensions of simulation volume; 200 x 200 x 200.
+% One element of the 3D matrix is a physical pixel.
+for loop = 1 : maxLoop
+    
+    xi = randn(N , 1);
+    
+    norm = sqrt(xi(1)^2 + xi(2)^2 + xi(3)^2); 
+    
+    xi =xi / norm;
+    
+    R_N = (r1^N) + (r2^N) * rand(1 , 1); 
+    R = (R_N)^(1 / N);
+    
+    rxi = R * xi;
+    firstIn = 1;
+    
+    while firstIn
+        
+        if (rxi(1)^2 + rxi(2)^2 + rxi(3)^2) >= rIn^2 && (rxi(1)^2 + rxi(2)^2 + rxi(3)^2) <= rOut^2
+            
+            firstIn = 1;
+            xi = randn(N , 1);
+            
+            norm = sqrt(xi(1)^2 + xi(2)^2 + xi(3)^2);
+            
+            xi =xi / norm;
+            
+            R_N = (r1^N) + (r2^N) * rand(1 , 1);
+            R = (R_N)^(1 / N);
+            
+            rxi = R * xi;
+            
+        else
+            
+            firstIn = 0;
+            
+        end
+        
+    end
+    
+    xPart = zeros(nP , nStep);
+    yPart = xPart;
+    zPart = xPart;
+    
+    xPart(nP , 1) = 100 + rxi(1);
+    yPart(nP , 1) = 100 + rxi(2);
+    zPart(nP , 1) = 100 + rxi(3);
+    
+    flagLoc = zeros(nP , nStep); % 0 for inside and 1 for outside
+    
+    if (xPart(nP , 1) - 100)^2 + (yPart(nP , 1) - 100)^2 + (zPart(nP , 1) - 100)^2 > rOut^2
+        
+        flagLoc(nP , 1) = 1;
+        
+    elseif (xPart(nP , 1) - 100)^2 + (yPart(nP , 1) - 100)^2 + (zPart(nP , 1) - 100)^2 < rIn^2
+        
+        flagLoc(nP , 1) = 0;
+        
+    end
+    
+    dX = scFac * randn(nP , nStep);
+    dY = scFac * randn(nP , nStep);
+    dZ = scFac * randn(nP , nStep);
+    
+    for tSim = 2 : nStep - 1
+        
+        % Generate next particle position (similar to cumsum() )
+        xPart(nP , tSim) = xPart(nP , tSim - 1) + dX(nP  , tSim - 1);
+        yPart(nP , tSim) = yPart(nP , tSim - 1) + dY(nP  , tSim - 1);
+        zPart(nP , tSim) = zPart(nP , tSim - 1) + dZ(nP  , tSim - 1);
+        
+        if ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 < rIn^2)
+            
+            flagLoc(nP , tSim) = 0;
+            
+        elseif ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 > rOut^2)
+            
+            flagLoc(nP , tSim) = 1;
+            
+        elseif ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 >= rIn ^2) && ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 <= rOut^2)
+            
+            inN = 1;
+            
+            while inN == 1
+                
+                dX(nP , tSim - 1) = scFac * randn();
+                dY(nP , tSim - 1) = scFac * randn();
+                dZ(nP , tSim - 1) = scFac * randn();
+                
+                xPart(nP , tSim) = xPart(nP , tSim - 1) + dX(nP  , tSim - 1);
+                yPart(nP , tSim) = yPart(nP , tSim - 1) + dY(nP  , tSim - 1);
+                zPart(nP , tSim) = zPart(nP , tSim - 1) + dZ(nP  , tSim - 1);
+                
+                if ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 < rIn^2)
+                    
+                    inN = 0;
+                    flagLoc(nP , tSim) = 0;
+                    
+                elseif ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 > rOut^2)
+                    
+                    inN = 0;
+                    flagLoc(nP , tSim) = 1;
+                    
+                elseif ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 >= rIn ^2) && ((xPart(nP , tSim) - 100)^2 + (yPart(nP , tSim) - 100)^2 + (zPart(nP , tSim) - 100)^2 <= rOut^2)
+                    
+                    inN = 1;
+                    
+                end
+                
+            end
+            
+        end
+        
+        % Particle is outside
+        % Check if next position is still outside, going inside or going in the NE
+        % Once outside, and next inside, reject it
+        % Once outside, and next in NE, reject it
+        if flagLoc(nP , tSim) == 1
+            
+            xP = xPart(nP , tSim) + dX(nP , tSim);
+            yP = yPart(nP , tSim) + dY(nP , tSim);
+            zP = zPart(nP , tSim) + dZ(nP , tSim);
+            
+            if ((xP - 100)^2 + (yP - 100)^2 + (zP - 100)^2 > rOut^2) % Case 1
+                
+                flagLoc(nP , tSim + 1) = 1;
+                
+                xPart(nP , tSim + 1) = xPart(nP , tSim) + dX(nP , tSim);
+                yPart(nP , tSim + 1) = yPart(nP , tSim) + dY(nP , tSim);
+                zPart(nP , tSim + 1) = zPart(nP , tSim) + dZ(nP , tSim);
+                
+            elseif ((xP - 100)^2 + (yP - 100)^2 + (zP - 100)^2 >= rIn^2) && ((xP - 100)^2 + (yP - 100)^2 + (zP - 100)^2 <= rOut^2) % Case 2
+                
+                insideNENucleus = 1;
+                
+                while insideNENucleus == 1
+                    
+                    dX(nP , tSim) = scFac * randn();
+                    dY(nP , tSim) = scFac * randn();
+                    dZ(nP , tSim) = scFac * randn();
+                    
+                    xPart(nP , tSim + 1) = xPart(nP , tSim) + dX(nP , tSim);
+                    yPart(nP , tSim + 1) = yPart(nP , tSim) + dY(nP , tSim);
+                    zPart(nP , tSim + 1) = zPart(nP , tSim) + dZ(nP , tSim);
+                    
+                    if ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 >= rIn^2) && ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 <= rOut^2)
+                        
+                        insideNENucleus = 1;
+                        
+                    elseif ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 > rOut^2)
+                        
+                        insideNENucleus = 0;
+                        flagLoc(nP , tSim + 1) = 1;
+                        
+                    elseif ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 < rIn^2)
+                        
+                        insideNENucleus = 1;
+                        
+                    end
+                    
+                end
+                
+            elseif ((xP - 100)^2 + (yP - 100)^2 + (zP - 100)^2 < rIn^2) % Case 3
+                
+                insideNEE = 1;
+                
+                while insideNEE == 1
+                    
+                    dX(nP , tSim) = scFac * randn();
+                    dY(nP , tSim) = scFac * randn();
+                    dZ(nP , tSim) = scFac * randn();
+                    
+                    xPart(nP , tSim + 1) = xPart(nP , tSim) + dX(nP , tSim);
+                    yPart(nP , tSim + 1) = yPart(nP , tSim) + dY(nP , tSim);
+                    zPart(nP , tSim + 1) = zPart(nP , tSim) + dZ(nP , tSim);
+                    
+                    if ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 >= rIn^2) && ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 <= rOut^2)
+                        
+                        insideNEE = 1;
+                        
+                    elseif ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 > rOut^2)
+                        
+                        insideNEE = 0;
+                        flagLoc(nP , tSim + 1) = 1;
+                        
+                    elseif ((xPart(nP , tSim + 1) - 100)^2 + (yPart(nP , tSim + 1) - 100)^2 + (zPart(nP , tSim + 1) - 100)^2 < rIn^2)
+                        
+                        insideNEE = 1;
+                        
+                    end
+                    
+                end
+                
+            end
+            
+        end
+        
+        % Check that particle doesn't go outside simulation boundaries at next timestep
+        xPP = xPart(nP , tSim) + dX(nP , tSim);
+        yPP = yPart(nP , tSim) + dY(nP , tSim);
+        zPP = zPart(nP , tSim) + dZ(nP , tSim);
+        
+        if xPP >= 200 || xPP <= 0
+            
+            outX = 1;
+            
+            while outX == 1
+                
+                dX(nP , tSim) = scFac * randn();
+                
+                xPP = xPart(nP , tSim) + dX(nP , tSim);
+                
+                if xPP >= 200 || xPP <= 0
+                    
+                    outX = 1;
+                    
+                elseif xPP < 200 && xPP > 0
+                    
+                    outX = 0;
+                    xPart(nP , tSim + 1) = xPP;
+                    
+                end
+                
+            end
+            
+        end
+        
+        if yPP >= 200 || yPP <= 0
+            
+            outY = 1;
+            
+            while outY == 1
+                
+                dY(nP , tSim) = scFac * randn();
+                
+                yPP = yPart(nP , tSim) + dY(nP , tSim);
+                
+                if yPP >= 200 || yPP <= 0
+                    
+                    outY = 1;
+                    
+                elseif yPP < 200 && yPP > 0
+                    
+                    outY = 0;
+                    yPart(nP , tSim + 1) = yPP;
+                    
+                end
+                
+            end
+            
+        end
+        
+        if zPP >= 200 || zPP <= 0
+            
+            outZ = 1;
+            
+            while outZ == 1
+                
+                dZ(nP , tSim) = scFac * randn();
+                
+                zPP = zPart(nP , tSim) + dZ(nP , tSim);
+                
+                if zPP >= 200 || zPP <= 0
+                    
+                    outZ = 1;
+                    
+                elseif zPP < 200 && zPP > 0
+                    
+                    outZ = 0;
+                    zPart(nP , tSim + 1) = zPP;
+                    
+                end
+                
+            end
+            
+        end
+        
+    end
+    
+    
+    xPart = xPart(nP , (1 : nStep - 1));
+    yPart = yPart(nP , (1 : nStep - 1));
+    zPart = zPart(nP , (1 : nStep - 1));
+    
+    dX = dX(nP , (1 : nStep - 1));
+    dY = dY(nP , (1 : nStep - 1));
+    dZ = dZ(nP , (1 : nStep - 1));
+    
+    flagLoc = flagLoc (nP , (1 : nStep - 1));
+    
+    PosSum = [xPart ;  yPart ; zPart];
+    inNE = zeros(nP , nStep - 1);
+    
+    for ijk = 1 : nStep - 1
+        
+        if  ((PosSum(1 ,  ijk) - 100)^2 + (PosSum(2 ,  ijk) - 100)^2  + (PosSum(3 ,  ijk) - 100)^2) >=  rIn^2 && ((PosSum(1 ,  ijk) - 100)^2 + (PosSum(2 ,  ijk) - 100)^2  + (PosSum(3 ,  ijk) - 100)^2) <=  rOut^2
+            
+            inNE(nP ,  ijk) = ijk;
+            
+        end
+        
+    end
+    
+    inNE = inNE(inNE ~= 0);
+    outNE = setdiff(1 : (nStep - 1) , inNE);
+    
+    %%% If done correctly we never expect particle to be placed inside NE ever
+    disp(inNE);
+    
+    if visual == 1
+        
+        for tP = 1 : nStep - 1
+            
+            hFig = figure(1);
+            set(hFig , 'Position', [500 70 700 700]);
+            
+            if ((xPart(nP , tP) - 100)^2 + (yPart(nP, tP) - 100)^2 + (zPart(nP , tP) - 100)^2) < rIn^2
+                
+                plot3(xPart(nP , tP) , yPart(nP, tP) , zPart(nP, tP) , 'rx' , 'MarkerSize' , 8); % inside nucleus plot
+                
+            elseif ((xPart(nP , tP) - 100)^2 + (yPart(nP, tP) - 100)^2 + (zPart(nP , tP) - 100)^2) > rOut^2
+                
+                plot3(xPart(nP , tP) , yPart(nP, tP) , zPart(nP, tP) , 'bx' , 'MarkerSize' , 8); % outside nucleus plot
+                
+            elseif ((xPart(nP , tP) - 100)^2 + (yPart(nP, tP) - 100)^2 + (zPart(nP , tP) - 100)^2) >= rIn^2 && ((xPart(nP , tP) - 100)^2 + (yPart(nP , tP) - 100)^2 + (zPart(nP , tP) - 100)^2) <= rOut^2
+                
+                plot3(xPart(nP , tP) , yPart(nP , tP) , zPart(nP , tP) , 'gx' , 'MarkerSize' , 8); % inside NE plot; shouldn't occur if we implemented exclusion zone properly
+                
+            end
+            
+            sPIn = surf(xS * rIn + 100 , yS * rIn + 100 , zS * rIn + 100);
+            set(sPIn , 'FaceAlpha', 0.0);
+            
+            sPOut =  surf(xS * rOut + 100 , yS * rOut + 100 , zS * rOut + 100);
+            set(sPOut , 'FaceAlpha', 0.0);
+            
+            ax = gca;
+            ax.Color = [0.95 0.95 0.95];
+            
+            axis square;
+            axis equal;
+            
+            grid on;
+            rotate3d on;
+            
+            xlabel('X [pix]');
+            ylabel('Y [pix]');
+            zlabel('Z [pix]');
+            
+            pause(0.05);
+            hold all;
+            
+        end
+        
+    end
+    
+    dXIn = dX(flagLoc == 0);
+    dYIn = dY(flagLoc == 0);
+    dZIn = dZ(flagLoc == 0);
+    
+    rdIn(loop ,  1 : size(dXIn , 2)) = dXIn.^2 + dYIn.^2 + dZIn.^2;
+    
+    dXOut = dX(flagLoc == 1);
+    dYOut = dY(flagLoc == 1);
+    dZOut = dZ(flagLoc == 1);
+    
+    rdOut(loop , 1 : size(dXOut , 2)) = dXOut.^2 + dYOut.^2 + dZOut.^2;
+    
+    if save_var == 1
+        
+        save([folderName,'\xCoo', num2str(loop) ,'.mat'] , 'xPart');
+        save([folderName,'\yCoo', num2str(loop) ,'.mat'] , 'yPart');
+        save([folderName,'\zCoo', num2str(loop) ,'.mat'] , 'zPart');
+        save([folderName,'\pLoc', num2str(loop) ,'.mat'] , 'flagLoc');
+        save([folderName,'\rdIn', num2str(loop) ,'.mat'] , 'rdIn');
+        save([folderName,'\rdOut', num2str(loop) ,'.mat'] , 'rdOut');
+        
+        %%% Parameter save
+        save([folderName,'\parameters','.mat'] , 'tStart' , 'tEnd' , 'nStep' , 'C' , 'D');
+        
+    end
+    
+    if save_var_2 == 1
+        
+        save([folderName_2,'\dXIn', num2str(loop) ,'.mat'] , 'dXIn');
+        save([folderName_2,'\dYIn', num2str(loop) ,'.mat'] , 'dYIn');
+        save([folderName_2,'\dZIn', num2str(loop) ,'.mat'] , 'dZIn');
+        save([folderName_2,'\dXOut', num2str(loop) ,'.mat'] , 'dXOut');
+        save([folderName_2,'\dYOut', num2str(loop) ,'.mat'] , 'dYOut');
+        save([folderName_2,'\dZOut', num2str(loop) ,'.mat'] , 'dZOut');
+        
+        %%% Parameter save
+        save([folderName_2,'\parameters','.mat'] , 'tStart' , 'tEnd' , 'nStep' , 'C' , 'D');
+        
+    end
+    
+    rdIn = rdIn(rdIn ~= 0);
+    rdOut = rdOut(rdOut ~= 0);
+    
+end
+%% Statistical testing of displacements
+clear all;
+close all;
+clc;
+
+pathName = uigetdir();
+nP = 1;
+load([pathName,'\parameters','.mat']);
+selectedDXIn = rdir([pathName , '\**\*dXIn*.mat']);
+selectedDYIn = rdir([pathName , '\**\*dYIn*.mat']);
+selectedDZIn = rdir([pathName , '\**\*dZIn*.mat']);
+
+selectedDXOut = rdir([pathName , '\**\*dXOut*.mat']);
+selectedDYOut = rdir([pathName , '\**\*dYOut*.mat']);
+selectedDZOut = rdir([pathName , '\**\*dZOut*.mat']);
+
+for i = 1 : size(selectedDXIn , 1)
+    
+    dxi(i) =  load(selectedDXIn(i).name , 'dXIn');
+    dyi(i) =  load(selectedDYIn(i).name , 'dYIn');
+    dzi(i) =  load(selectedDZIn(i).name , 'dZIn');
+    
+end
+
+for j = 1 : size(selectedDXIn , 1)
+    
+    try
+        
+        dxicoo(j , :) = dxi(nP , j).dXIn;
+        dyicoo(j , :) = dyi(nP , j).dYIn;
+        dzicoo(j , :) = dzi(nP , j).dZIn;
+        
+    catch
+        
+        continue
+        
+    end
+    
+end
+
+for i = 1 : size(selectedDXOut , 1)
+    
+    dxo(i) =  load(selectedDXOut(i).name , 'dXOut');
+    dyo(i) =  load(selectedDYOut(i).name , 'dYOut');
+    dzo(i) =  load(selectedDZOut(i).name , 'dZOut');
+    
+end
+
+for j = 1 : size(selectedDXOut , 1)
+    
+    try
+        
+        dxocoo(j , :) = dxo(nP , j).dXOut;
+        dyocoo(j , :) = dyo(nP , j).dYOut;
+        dzocoo(j , :) = dzo(nP , j).dZOut;
+        
+    catch
+        
+        continue
+        
+    end
+    
+end
+
+dxicoo = reshape(dxicoo , [1 numel(dxicoo)]);
+dyicoo = reshape(dyicoo , [1 numel(dyicoo)]);
+dzicoo = reshape(dzicoo , [1 numel(dzicoo)]);
+
+dxocoo = reshape(dxocoo , [1 numel(dxocoo)]);
+dyocoo = reshape(dyocoo , [1 numel(dyocoo)]);
+dzocoo = reshape(dzocoo , [1 numel(dzocoo)]);
+
+dxicoo = dxicoo(dxicoo ~= 0); dyicoo = dyicoo(dyicoo ~= 0); dzicoo = dzicoo(dzicoo ~= 0);
+dxocoo = dxocoo(dxocoo ~= 0); dyocoo = dyocoo(dyocoo ~= 0); dzocoo = dzocoo(dzocoo ~= 0);
+
+% Statistical test to determine with certain significance level whether or not our displacements in simulation are sampled from normal distribution
+% this is to ensure that rejecting of jumps doesn't change the underlying distribution of the displacements with 1% significance level
+[h_dxin , p_dxin , stats_dxin] = chi2gof(dxicoo , 'Alpha' , 0.01);
+[h_dyin , p_dyin , stats_dyin] = chi2gof(dyicoo , 'Alpha' , 0.01);
+[h_dzin , p_dzin , stats_dzin] = chi2gof(dzicoo , 'Alpha' , 0.01);
+
+[h_dxout , p_dxout , stats_dxout] = chi2gof(dxocoo , 'Alpha' , 0.01);
+[h_dyout , p_dyout , stats_dyout] = chi2gof(dyocoo , 'Alpha' , 0.01);
+[h_dzout , p_dzout , stats_dzout] = chi2gof(dzocoo , 'Alpha' , 0.01);
+
+% Statistical test to determine with certain significance whether or not the displacements in different locations are statistically different, in other words, are they sampled from a different
+% distribution
+% [h_1 , p_1 , stats_1] = kstest2(dxicoo.^2 , dxocoo.^2 , 'Alpha' , 0.01);
+% [h_2 , p_2 , stats_2] = kstest2(dyicoo.^2 , dyocoo.^2 , 'Alpha' , 0.01);
+% [h_3 , p_3 , stats_3] = kstest2(dyicoo.^2 , dyocoo.^2 , 'Alpha' , 0.01);
+
+% Histograms for showing similarities between rejected increments and theoretical chi-squared distributions with 1,2 and 3 degrees of freedom
+
+% Inside comparison
+xMax = linspace(0 , 10 , 300);
+chi_1 = chi2pdf(xMax , 1); chi_2 = chi2pdf(xMax , 2); chi_3 = chi2pdf(xMax , 3);
+% DOF 1
+figure(1);
+subplot(2 , 2 , 1);
+plot(xMax , chi_1 , 'r'); hold on; histogram(dxicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dyicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dzicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(1) \chi^{2}-distribution vs. rejected inside increments'); legend('Theoretical pdf' , 'dX_{in}^{2}' , 'dY_{in}^{2}' , 'dZ_{in}^{2}');
+% DOF 2
+subplot(2 , 2 , 2);
+plot(xMax , chi_2 , 'r'); hold on; histogram(dxicoo.^2 + dyicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dxicoo.^2 + dzicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dyicoo.^2 + dzicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(2) \chi^{2}-distribution vs. rejected inside increments'); legend('Theoretical pdf' , 'dX_{in}^{2}+dY_{in}^{2}' , 'dX_{in}^{2}+dZ_{in}^{2}' , 'dY_{in}^{2}+dZ_{in}^{2}');
+% DOF 3
+subplot(2 , 2 , 3);
+plot(xMax , chi_3 , 'r'); hold on; histogram(dxicoo.^2 + dyicoo.^2 + dzicoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(3) \chi^{2}-distribution vs. rejected inside increments'); legend('Theoretical pdf' , 'dX_{in}^{2}+dY_{in}^{2}+dZ_{in}^{2}');
+% Outside comparison
+% DOF 1
+figure(2);
+subplot(2 , 2 , 1);
+plot(xMax , chi_1 , 'r'); hold on; histogram(dxocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dyocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dzocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(1) \chi^{2}-distribution vs. rejected outside increments'); legend('Theoretical pdf' , 'dX_{out}^{2}' , 'dY_{out}^{2}' , 'dZ_{out}^{2}');
+%DOF 2
+subplot(2 , 2 , 2);
+plot(xMax , chi_2 , 'r'); hold on; histogram(dxocoo.^2 + dyocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dxocoo.^2 + dzocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf'); hold on; histogram(dyocoo.^2 + dzocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(2) \chi^{2}-distribution vs. rejected outside increments'); legend('Theoretical pdf' , 'dX_{out}^{2}+dY_{out}^{2}' , 'dX_{out}^{2}+dZ_{out}^{2}' , 'dY_{out}^{2}+dZ_{out}^{2}');
+% DOF 3
+subplot(2 , 2 , 3);
+plot(xMax , chi_3 , 'r'); hold on; histogram(dxocoo.^2 + dyocoo.^2 + dzocoo.^2 , 'FaceAlpha' , 0.5 , 'Normalization' , 'pdf');
+xlabel('Squared distance in [pix^2]'); ylabel('Probability density function'); title('Theoretical DOF(3) \chi^{2}-distribution vs. rejected outside increments'); legend('Theoretical pdf' , 'dX_{out}^{2}+dY_{out}^{2}+dZ_{out}^{2}');
+%% Loading saved particle positions
+clear all;
+close all;
+clc;
+
+nP = 1;
+pathName = uigetdir();
+load([pathName,'\parameters','.mat']);
+selectedX = rdir([pathName , '\**\*xCoo*.mat']);
+selectedY = rdir([pathName , '\**\*yCoo*.mat']);
+selectedZ = rdir([pathName , '\**\*zCoo*.mat']);
+selectedLoc = rdir([pathName , '\**\*pLoc*.mat']);
+
+for i = 1 : size(selectedX , 1)
+    
+    xC(i) =  load(selectedX(i).name , 'xPart');
+    yC(i) =  load(selectedY(i).name , 'yPart');
+    zC(i) =  load(selectedZ(i).name , 'zPart');
+    pLc(i) =  load(selectedLoc(i).name , 'flagLoc');
+    
+end
+
+for j = 1 : size(selectedX , 1)
+    
+    yCoo(j , :) = yC(nP , j).yPart;
+    xCoo(j , :) = xC(nP , j).xPart;
+    zCoo(j , :) = zC(nP , j).zPart;
+    paLoc(j , :) = pLc(nP , j).flagLoc;
+    
+end
+
+% Parameters of simulation
+dT= (tEnd - tStart) / (nStep - 1);
+factor = ((95.8 * 10 ^ - 9) ^ 2) / dT; % units of the pixel 95.8nm
+DReal = D * factor;
+%% Diffusion calculation for simulated trajectories
+% 1 - Particles inside nucleus
+for simCount = 1 : size(selectedX , 1)
+    
+    indTIn = find((paLoc(simCount , :) == 0)); % find for each simulation timepoints corresponding to outside, 0,  and inside, 1, the nucleus
+    MSDIn = zeros(size(indTIn , 2)  - 1 , 1);
+    
+    if ~ isempty(indTIn)
+        
+        for nn = 1 :  (size(indTIn , 2) - 1)
+            
+            for ii = 1 : (size(indTIn , 2)  - nn)
+                
+                dXIn = xCoo(simCount , indTIn(nn + ii)) - xCoo(simCount , indTIn(ii));
+                dYIn = yCoo(simCount , indTIn(nn + ii)) - yCoo(simCount , indTIn(ii));
+                dZIn = zCoo(simCount , indTIn(nn + ii)) - zCoo(simCount , indTIn(ii));
+                %sumSqDIn = sum(dXIn^2 + dYIn^2);
+                sumSqDIn = sum(dXIn^2 + dYIn^2 + dZIn^2);
+                
+                MSDIn(nn) = MSDIn(nn) + sumSqDIn;
+                
+            end
+            
+            MSDIn(nn) = MSDIn(nn) / (size(indTIn , 2)  -  nn);
+            
+        end
+        
+        tLIn = (1 : (size(indTIn , 2) - 1));
+        tLIn = tLIn( 1 : end / 4);
+        mIn = [MSDIn]';
+        mIn = mIn( 1 : end / 4);
+        
+        fittedMSDIn = polyfit( tLIn , mIn , 1);
+        MSDPlotIn{simCount} = [0 ; MSDIn]';
+        tLagIn{simCount} = 0 : (size(indTIn , 2) - 1);
+        
+        DdIn = fittedMSDIn(1); % units are in [pix^2 / s]
+        dTotIn(simCount) = DdIn;
+        
+    end
+    
+end
+
+% Plot all MSD curves for all simulations
+for pIn = 1 : size(MSDPlotIn , 2)
+    
+    if ~ isempty(MSDPlotIn{1 , pIn})
+        
+        figure(1);
+        plot(tLagIn{1 , pIn} , MSDPlotIn{1 , pIn});
+        hold on;
+        
+    end
+    
+end
+xlabel('Lag time [\Deltat]');
+ylabel('MSD in [pix^2]');
+title('MSD vs lag time for particles inside');
+
+% Mean diffusion coefficient inside for 2D and 3D
+%dTotIn = dTotIn(dTotIn ~= 0) / (4 * C * dT);
+dTotIn = dTotIn(dTotIn ~= 0) / (6 * C * dT);
+figure(2);
+histogram(dTotIn , 20 , 'FaceColor' , 'blue');
+xlabel('Diffusion coefficient in [pix^2/s]');
+ylabel('Counts');
+title('Distribution of diffusion coefficients inside - 3D MSD fit');
+
+meanDIn2D = mean(dTotIn);
+%meanDIn3D = mean(dTotIn);
+%% 2 - Particles outside nucleus
+for simCount = 1 : size(selectedX , 1)
+    
+    indTOut = find((paLoc(simCount , :) == 1)); % find for each simulation timepoints corresponding to outside, 0,  and inside, 1, the nucleus
+    MSDOut = zeros(size(indTOut , 2)  - 1 , 1);
+    
+    if ~ isempty(indTOut)
+        
+        for nn = 1 :  (size(indTOut , 2) - 1)
+            
+            for ii = 1 : (size(indTOut , 2)  - nn)
+                
+                dXOut = xCoo(simCount , indTOut(ii + nn)) - xCoo(simCount , indTOut(ii));
+                dYOut = yCoo(simCount , indTOut(ii + nn)) - yCoo(simCount , indTOut(ii));
+                %dZOut = zCoo(simCount , indTOut(ii + nn)) - zCoo(simCount , indTOut(ii));
+                sumSqDOut = sum(dXOut^2 + dYOut^2);
+                %sumSqDOut = sum(dXOut^2 + dYOut^2 + dZOut^2);
+                MSDOut(nn) = MSDOut(nn) + sumSqDOut;
+                
+            end
+            
+            MSDOut(nn) = MSDOut(nn) / (size(indTOut , 2)  -  nn);
+            
+        end
+        
+        fittedMSDOut = polyfit( (0 : (size(indTOut , 2) - 1)) , [0 ; MSDOut]' , 1);
+        MSDPlotOut{simCount} = [0 ; MSDOut]';
+        tLagOut{simCount} = 0 : (size(indTOut , 2) - 1);
+        
+        DdOut = fittedMSDOut(1); % units are in [pix^2 / s]
+        dTotOut(simCount) = DdOut;
+        
+    end
+    
+end
+
+% Plot all MSD curves for all simulations
+for pOut = 1 : size(MSDPlotOut , 2)
+    
+    if ~ isempty(MSDPlotOut{1 , pOut})
+        
+        figure(1);
+        plot(tLagOut{1 , pOut} , MSDPlotOut{1 , pOut});
+        hold on;
+        
+    end
+    
+end
+xlabel('Lag time [\Deltat]');
+ylabel('MSD in [pix^2]');
+title('MSD vs lag time for particles outside');
+
+% Mean diffusion coefficient outside for 2D and 3D
+dTotOut = dTotOut(dTotOut ~= 0) / (4 * C * dT);
+%dTotOut = dTotOut(dTotOut ~= 0) / (6 * C * dT);
+figure(2);
+histogram(dTotOut , 20 , 'FaceColor' , 'blue');
+xlabel('Diffusion coefficient in [pix^2/s]');
+ylabel('Counts');
+title('Distribution of diffusion coefficients outside - 3D MSD fit');
+
+meanDOut2D = mean(dTotOut);
+%meanDOut3D = mean(dTotOut);
+
+%%%%% Ratio diffusion outside vs inside for 2D and 3D
+%ratioD2D = meanDOut2D / meanDIn2D;
+%ratioD3D = meanDOut3D / meanDIn3D;
+%% Calculation of nuclear diffusion time of simulated mRNA particles before tracking
+clear all;
+close all;
+clc;
+
+nP = 1;
+pathName = uigetdir();
+load([pathName,'\parameters','.mat']);
+
+selectedLoc = rdir([pathName , '\**\*pLoc*.mat']);
+
+for i = 1 : size(selectedLoc , 1)
+    
+    pLc(i) =  load(selectedLoc(i).name , 'flagLoc');
+    
+end
+
+for j = 1 : size(selectedLoc , 1)
+    
+    paLoc(j , :) = pLc(nP , j).flagLoc;
+    
+end
+
+% Parameter of simulation
+dT= (tEnd - tStart) / (nStep - 1);
+
+% find location where particle is outside for the first time.
+for j = 1 : size(selectedLoc , 1)
+    
+    nuclearDiffTime(j) = dT * size((1 : (find(paLoc(j , :) , 1 , 'first') - 1)) , 2);
+    
+end
+
+averageNuclearDiffTime = mean(nuclearDiffTime); % time in seconds
+%% Use quarter of time points, select quarter randomly from set of indices
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Diffusion calculation but now we only use up to 1/4th of the timepoints that are present
+%%% Diffusion calculation for simulated trajectories
+% 1 - Particles inside nucleus
+% for simCount = 1 : size(selectedX , 1)
+%
+%     indTIn = find((paLoc(simCount , :) == 0));
+%
+%     if ~ isempty(indTIn)
+%
+%         indTIn = indTIn(1) : indTIn(1 + ceil((indTIn(size(indTIn , 2)) - indTIn(1)) / 4));
+%         MSDIn = zeros(size(indTIn , 2)  - 1 , 1);
+%
+%         for nn = 1 :  (size(indTIn , 2) - 1)
+%
+%             for ii = 1 : (size(indTIn , 2)  - nn)
+%
+%                 dXIn = xCoo(simCount , indTIn(nn + ii)) - xCoo(simCount , indTIn(ii));
+%                 dYIn = yCoo(simCount , indTIn(nn + ii)) - yCoo(simCount , indTIn(ii));
+%                 %dZIn = zCoo(simCount , indTIn(nn + ii)) - zCoo(simCount , indTIn(ii));
+%                 sumSqDIn = sum(dXIn^2 + dYIn^2);
+%                 %sumSqDIn = sum(dXIn^2 + dYIn^2 + dZIn^2);
+%
+%                 MSDIn(nn) = MSDIn(nn) + sumSqDIn;
+%
+%             end
+%
+%             MSDIn(nn) = MSDIn(nn) / (size(indTIn , 2)  -  nn);
+%
+%         end
+%
+%         fittedMSDIn = polyfit( (0 : (size(indTIn , 2) - 1)) , [0 ; MSDIn]' , 1); % fitting the MSD to a linear model
+%         MSDPlotIn{simCount} = [0 ; MSDIn]';
+%         tLagIn{simCount} = 0 : (size(indTIn , 2) - 1);
+%
+%         DdIn = fittedMSDIn(1); % units are in [pix^2 / s]
+%         dTotIn(simCount) = DdIn;
+%
+%     end
+%
+% end
+%
+% % Plot all MSD curves for all simulations
+% for pIn = 1 : size(MSDPlotIn , 2)
+%
+%     if ~ isempty(MSDPlotIn{1 , pIn})
+%
+%         figure(1);
+%         plot(tLagIn{1 , pIn} , MSDPlotIn{1 , pIn});
+%         hold on;
+%
+%     end
+%
+% end
+% xlabel('Lag time [\Deltat]');
+% ylabel('MSD in [pix^2]');
+% title('MSD vs lag time for particles inside');
+%
+% % Mean diffusion coefficient inside for 2D and 3D
+% meanDIn2D = mean(dTotIn(dTotIn ~= 0)) / (4 * C * dT);
+% %meanDIn3D = mean(dTotIn(dTotIn ~= 0)) / (6 * C * dT);
+% %% 2 - Particles outside nucleus
+% for simCount = 1 : size(selectedX , 1)
+%
+%     indTOut = find((paLoc(simCount , :) == 1));
+%
+%     if ~ isempty(indTOut)
+%
+%         indTOut = indTOut(1) : indTOut(1 + ceil((indTOut(size(indTOut , 2)) - indTOut(1)) / 4));
+%         MSDOut = zeros(size(indTOut , 2)  - 1 , 1);
+%
+%         for nn = 1 :  (size(indTOut , 2) - 1)
+%
+%             for ii = 1 : (size(indTOut , 2)  - nn)
+%
+%                 dXOut = xCoo(simCount , indTOut(ii + nn)) - xCoo(simCount , indTOut(ii));
+%                 dYOut = yCoo(simCount , indTOut(ii + nn)) - yCoo(simCount , indTOut(ii));
+%                 %dZOut = zCoo(simCount , indTOut(ii + nn)) - zCoo(simCount , indTOut(ii));
+%                 sumSqDOut = sum(dXOut^2 + dYOut^2);
+%                 %sumSqDOut = sum(dXOut^2 + dYOut^2 + dZOut^2);
+%                 MSDOut(nn) = MSDOut(nn) + sumSqDOut;
+%
+%             end
+%
+%             MSDOut(nn) = MSDOut(nn) / (size(indTOut , 2)  -  nn);
+%
+%         end
+%
+%         fittedMSDOut = polyfit( (0 : (size(indTOut , 2) - 1)) , [0 ; MSDOut]' , 1);
+%         MSDPlotOut{simCount} = [0 ; MSDOut]';
+%         tLagOut{simCount} = 0 : (size(indTOut , 2) - 1);
+%
+%         DdOut = fittedMSDOut(1); % units are in [pix^2 / s]
+%         dTotOut(simCount) = DdOut;
+%
+%     end
+%
+% end
+%
+% % Plot all MSD curves for all simulations
+% for pOut = 1 : size(MSDPlotOut , 2)
+%
+%     if ~ isempty(MSDPlotOut{1 , pOut})
+%
+%         figure(2);
+%         plot(tLagOut{1 , pOut} , MSDPlotOut{1 , pOut});
+%         hold on;
+%
+%     end
+%
+% end
+% xlabel('Lag time [\Deltat]');
+% ylabel('MSD in [pix^2]');
+% title('MSD vs lag time for particles outside');
+%
+% % Mean diffusion coefficient outside for 2D and 3D
+% meanDOut2D = mean(dTotOut(dTotOut ~= 0)) / (4 * C * dT);
+% %meanDOut3D = mean(dTotOut(dTotOut ~= 0)) / (6 * C * dT);
+%
+% %%%%% Ratio diffusion outside vs inside for 2D and 3D
+% ratioD2D = meanDOut2D / meanDIn2D;
+% %ratioD3D = meanDOut3D / meanDIn3D;
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% Jump distance analysis for simulated data
+deltaT = dT;
+m = 1;
+for numSim = 1 : size(selectedX , 1)
+    
+    sizeXYZ = size(diff(xCoo(numSim , :)) , 2);
+    
+    dXSQ(numSim , 1 : sizeXYZ) = diff(xCoo(numSim , 1 : sizeXYZ + 1)) .^ 2;
+    dYSQ(numSim , 1 : sizeXYZ) = diff(yCoo(numSim , 1 : sizeXYZ + 1)) .^ 2;
+    dZSQ(numSim , 1 : sizeXYZ) = diff(zCoo(numSim , 1 : sizeXYZ + 1)) .^ 2;
+    
+end
+
+RSQ = sqrt(dXSQ + dYSQ + dZSQ);
+RSQ = reshape(RSQ , [1 numel(RSQ)]);
+
+[PData , RSQData] = ksdensity(RSQ , 'Function' , 'pdf');
+
+figure(1);
+histogram(RSQ ,'Normalization' ,'pdf');
+hold on;
+plot(RSQData ,  PData , 'r');
