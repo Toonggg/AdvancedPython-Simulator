@@ -12,5 +12,5 @@ Drift in all the dimensions will also be added. Switching of the diffusive motio
 * Add nice visualization of simulation (plots of 3D or 2D trajectories). 
 
 ### References
-[mplot3d](https://matplotlib.org/stable/tutorials/toolkits/mplot3d.html)
-[numba](http://numba.pydata.org/numba-doc/latest/user/jit.html)
+* [mplot3d](https://matplotlib.org/stable/tutorials/toolkits/mplot3d.html)
+* [numba](http://numba.pydata.org/numba-doc/latest/user/jit.html)
