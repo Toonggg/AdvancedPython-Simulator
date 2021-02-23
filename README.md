@@ -7,3 +7,4 @@ Normal Brownian motion will initially be implemented, however different diffusio
 * Get a rudimentary version working and extend from there... 
 
 ### References
+[mplot3d](https://matplotlib.org/stable/tutorials/toolkits/mplot3d.html)
