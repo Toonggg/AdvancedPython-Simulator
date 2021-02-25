@@ -10,6 +10,7 @@ Drift in all the dimensions will also be added. Switching of the diffusive motio
 ### TO-DO
 * Implement anomalous diffusion using Hurst exponent. 
 * Add nice visualization of simulation (plots of 3D or 2D trajectories). 
+* Implement collision of particle(s). 
 
 ### References
 * [mplot3d](https://matplotlib.org/stable/tutorials/toolkits/mplot3d.html)
