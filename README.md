@@ -1,15 +1,16 @@
 # AdvancedPython-Simulator
-A Python simulator that aims to realistically simulated molecular diffusion of single-molecules in cells. To get things working, old Matlab
-code will be used as a basis and expanded upon. The initial goal will be to simulate one single-particle very well. This can be extended to multiple particles.
-Normal Brownian motion will initially be implemented, however different diffusion models (anomolous diffusion - using the Hurst exponent) will also be added. 
-Drift in all the dimensions will also be added. Switching of the diffusive motion of particles is also to be implemented. Finally, nice visualization of the trajectories is also to be done. The code is supposed to be as modular as possible. 
+A Python simulator that aims to realistically simulate diffusion of single-molecules (in cells). Development is being done on Mac OS X 10.15.7 using Python 3. 
+To use the code, I advise using (Mini)conda and/or pip and installing any necessary dependencies this way. 
 
 ### Features
-* 3D simulation of Brownian motion for multiple particles (drift to be added later). 
+* 3D simulation of Brownian diffusion for multiple particles. 
+* 3D simulation of fractional Brownian motion for multiple particles with Hurst exponent H. 
+  * Subdiffusion: 0 < H < 0.5 
+  * Normal diffusion: H = 0.5
+  * Superdiffusion: 0.5 < H < 1.0 
 
 ### TO-DO
-* Implement anomalous diffusion using Hurst exponent. 
-* Add nice visualization of simulation (plots of 3D or 2D trajectories). 
+* Add plot showing MSD (Mean Squared Displacement).
 * Implement collision of particle(s). 
 
 ### References
