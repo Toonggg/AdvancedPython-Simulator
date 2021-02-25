@@ -1,36 +1,33 @@
 # Importing modules 
+# Choose different matplotlib back-end
 #import matplotlib
 #matplotlib.use('Qt5agg')
+import argparse
+import os, sys
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-import numpy as np
 from numba import jit 
+from scipy.special import gamma
+import numpy as np
+import scipy
 
-num_part = 50
-x_dim = 1024
-y_dim = x_dim
-z_dim = x_dim
-t_0 = 0
-t_end = 0.1
-n_step = 500
-dt = (t_end - t_0) / n_step 
+parser = argparse.ArgumentParser(description = 'Single-particle diffusion simulation')
+parser.add_argument('Test', type = str, help = 'Test. (str)', default = 'Test')
 
-D = 1
-sigma = np.sqrt(2 * dt * D)
+parser.add_argument('-nparts', '--num-part', type = int, help = 'Number of particles to simulate (int).', default = 1) 
+parser.add_argument('-nsteps', '--num-steps', type = int, help = 'Number of time steps to simulate (int).', default = 100)
+parser.add_argument('-hurst', '--hurst-exp', type = float, help = 'Hurst exponent (float).', default = 0.5)
+args = parser.parse_args()
 
-# With Numba off, it takes almost 1 minute to simulate everything 
+##################### Functions 
 # Reflective boundary conditions 
 @jit(nopython = True, cache = True)
-def square_bounds(px , py, pz):
+def square_bounds(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z):
+    """ 
+    Defines a square simulation boundary. 
+    """
     num_p = px.shape[0]
     size_p = px.shape[1]
-    min_x = 0 
-    min_y = 0 
-    min_z = 0 
-    
-    max_x = x_dim
-    max_y = y_dim
-    max_z = z_dim
 
     for p in np.arange(0, num_p):
         for i in np.arange(0, size_p):
@@ -43,60 +40,167 @@ def square_bounds(px , py, pz):
 
     return None 
 
+@jit(nopython = True, cache = True)
 def spherical_bounds():
+    """ 
+
+    """
 
     return None 
 
-plotting = 0
+@jit(nopython = True, cache = True)
+def initial_position(pos_x, pos_y, pos_z, x_0, y_0, z_0, x_1, y_1, z_1):
+    """ 
 
-origin = x_dim / 2
-x_0 = origin
-y_0 = origin
-z_0 = origin
-p_0 = np.array([x_0, y_0, z_0])
+    """
+
+    return p_x, p_y, p_z
+
+def plot_results_3d(t_vec , p_x, p_y, p_z): 
+    fig = plt.figure(1)
+    ax3d = plt.axes(projection = '3d') 
+    
+    for p in np.arange(0, p_x.shape[0], step = 1): 
+        for t in t_vec:
+            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x') 
+    
+    ax3d.set_xlabel('X') 
+    ax3d.set_ylabel('Y') 
+    ax3d.set_zlabel('Z') 
+
+def plot_results_traj(t_vec , p_x, p_y, p_z): 
+    fig = plt.figure()
+    
+    for p in np.arange(0, p_x.shape[0], step = 1): 
+        for t in t_vec:
+            plt.plot(t * dt, p_x[p, t], 'ro')
+            plt.plot(t * dt, p_y[p, t], 'go')
+            plt.plot(t * dt, p_z[p, t], 'bo')
+
+@jit(nopython = True, cache = True) 
+def simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t, drift = False):
+    """ 
+    Simulates 3D Brownian diffusion with/without drift. 
+    """
+    if drift == True:
+        v_x = np.random.random() 
+        v_y = np.random.random() 
+        v_z = np.random.random() 
+        drift_x = v_x * dt 
+        drift_y = v_y * dt 
+        drift_z = v_z * dt 
+    else:
+        drift_x = 0
+        drift_y = 0
+        drift_z = 0
+
+    for p in np.arange(0, num_part, step = 1): 
+        for ti in t: 
+            p_x[p, ti] = p_x[p, ti - 1] + increment_x[p, ti] + drift_x 
+            p_y[p, ti] = p_y[p, ti - 1] + increment_y[p, ti] + drift_y 
+            p_z[p, ti] = p_z[p, ti - 1] + increment_z[p, ti] + drift_z 
+            square_bounds(p_x, p_y, p_z, 0, 0, 0, x_dim, y_dim, z_dim) 
+    return p_x, p_y, p_z
+
+@jit(nopython = True, cache = True) 
+def simulate_fractionalbrownian(num_part, H, M, n, t, dt, x0, y0, z0, gamma_H): 
+    """ 
+    Simulates 3D fractional Brownian motion. 
+    """
+
+    incx = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0])))
+    incy = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0])))
+    incz = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0])))
+
+    p_x = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    p_y = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    p_z = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+
+    p_x[:, 0] = x0 + 50 * np.random.random(size = (1, num_part)) 
+    p_y[:, 0] = y0 + 50 * np.random.random(size = (1, num_part)) 
+    p_z[:, 0] = z0 + 50 * np.random.random(size = (1, num_part)) 
+
+    s1_x = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    s2_x = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+
+    s1_y = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    s2_y = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+
+    s1_z = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    s2_z = np.zeros(shape = (num_part, n * (M + t.shape[0])))    
+
+    prefac = (n ** - H)/ gamma_H
+    
+    for p in np.arange(0, num_part, step = 1): 
+        for ti in t: 
+            s1_x[p, ti] = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + n * (M + ti) - i]) for i in range(1, n + 1)]).sum()
+            s2_x[p, ti] = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, (n + 1) * (M - 1))]).sum()
+
+            s1_y[p, ti] = np.array([ ((i ** (H - 0.5)) * incy[p, 1 + n * (M + ti) - i]) for i in range(1, n + 1)]).sum()
+            s2_y[p, ti] = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incy[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, (n + 1) * (M - 1))]).sum()
+
+            s1_z[p, ti] = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + n * (M + ti) - i]) for i in range(1, n + 1)]).sum()
+            s2_z[p, ti] = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, (n + 1) * (M - 1))]).sum()
+
+            p_x[p, ti] = p_x[p, ti - 1] + prefac * (s1_x[p, ti] + s2_x[p, ti])
+            p_y[p, ti] = p_y[p, ti - 1] + prefac * (s1_y[p, ti] + s2_y[p, ti])
+            p_z[p, ti] = p_z[p, ti - 1] + prefac * (s1_z[p, ti] + s2_z[p, ti])    
+            square_bounds(p_x, p_y, p_z, 0, 0, 0, x_dim, y_dim, z_dim) 
+    return p_x, p_y, p_z
+
+# Simulation parameters 
+num_part = args.num_part
+x_dim = 1024 
+y_dim = x_dim
+z_dim = x_dim
+
+t_0 = 0
+t_end = 1
+n_step = args.num_steps 
+dt = (t_end - t_0) / n_step 
+
+H = args.hurst_exp
+gamma_H = gamma(H + 0.5)
+n = 8
+M = 500
+
+D = 1
+sigma = np.sqrt(2 * dt * D)
 
 # Generate Brownian increments
 increment_x = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, n_step))
 increment_y = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, n_step))
 increment_z = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, n_step))
 
+# Pre-allocation of memory for particle positions
 p_x = np.zeros(shape = (num_part, n_step)) 
 p_y = np.zeros(shape = (num_part, n_step)) 
 p_z = np.zeros(shape = (num_part, n_step)) 
 
-# Initial position of particle 
-p_x[:, 0] = x_0 + 50 * np.random.random(size = (1, num_part))
-p_y[:, 0] = y_0 + 50 * np.random.random(size = (1, num_part))
-p_z[:, 0] = z_0 + 50 * np.random.random(size = (1, num_part))
+# Generate origin coordinates
+origin = x_dim / 2
+x0 = origin
+y0 = origin
+z0 = origin 
 
+# Initial position of particle 
+p_x[:, 0] = x0 + 5 * np.random.random(size = (1, num_part))
+p_y[:, 0] = y0 + 5 * np.random.random(size = (1, num_part))
+p_z[:, 0] = z0 + 5 * np.random.random(size = (1, num_part))
+
+# Create time vector for simulation 
 t_vec = np.arange(start = t_0 + 1, stop = n_step, step = 1)
 
-# Simulate 
-@jit(nopython = True, cache = True)
-def simulate(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z):
-    for p in np.arange(0, num_part, step = 1):
-        for t in t_vec:
-            p_x[p, t] = p_x[p, t - 1] + 1 * increment_x[p, t] 
-            p_y[p, t] = p_y[p, t - 1] + 1 * increment_y[p, t] 
-            p_z[p, t] = p_z[p, t - 1] + 1 * increment_z[p, t] 
-            square_bounds(p_x, p_y, p_z)
-    return p_x, p_y, p_z
+p_x, p_y, p_z = simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t_vec, drift = False) 
 
-p_x, p_y, p_z = simulate(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z)
+p_x_frac, p_y_frac, p_z_frac = simulate_fractionalbrownian(num_part, H, M, n, t_vec, dt, x0, y0, z0, gamma_H)
 
-def plot_results(plotting, num_part, t_vec, p_x, p_y, p_z): 
-    fig = plt.figure(1)
-    ax3d = plt.axes(projection = '3d') 
-    
-    for p in np.arange(0, num_part, step = 1): 
-        for t in t_vec:
-            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x') 
-            #plt.plot(t, p_x[p, t], 'x')
-    
-    ax3d.set_xlabel('X')
-    ax3d.set_ylabel('Y')
-    ax3d.set_zlabel('Z')
-    plt.show()
+plot_results_3d(t_vec, p_x_frac, p_y_frac, p_z_frac)
+plot_results_traj(t_vec, p_x_frac, p_y_frac, p_z_frac)
 
-if plotting == 1:
-    plot_results(plotting, num_part, t_vec, p_x, p_y, p_z)
+plt.show()
+
+plotting = 0
+if plotting == 1: 
+    plot_results_3d(t_vec , p_x, p_y, p_z)
+    plot_results_traj(t_vec , p_x, p_y, p_z)
