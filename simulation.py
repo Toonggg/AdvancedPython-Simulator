@@ -16,6 +16,7 @@ parser.add_argument('Test', type = str, help = 'Test. (str)', default = 'Test')
 
 parser.add_argument('-nparts', '--num-part', type = int, help = 'Number of particles to simulate (int).', default = 1) 
 parser.add_argument('-nsteps', '--num-steps', type = int, help = 'Number of time steps to simulate (int).', default = 100)
+parser.add_argument('-n', '--n-time', type = int, help = 'Division of integer time (int). ', default = 1)
 parser.add_argument('-hurst', '--hurst-exp', type = float, help = 'Hurst exponent (float).', default = 0.5)
 args = parser.parse_args()
 
@@ -45,7 +46,7 @@ def square_bounds_fbm(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z):
     """ 
     Defines a square simulation boundary. 
     """
-    
+
 
     return px, py, pz
 
@@ -57,7 +58,7 @@ def initial_position(pos_x, pos_y, pos_z, x_0, y_0, z_0, x_1, y_1, z_1):
 
     return p_x, p_y, p_z
 
-@jit(nopython = True, cache = True)
+@jit(nopython = True, cache = True) 
 def calculate_msd(pos_x, pos_y, pos_z):
     """ 
     Calculates MSD of particle trajectories. 
@@ -77,7 +78,7 @@ def plot_results_3d(t_vec , p_x, p_y, p_z):
     
     for p in np.arange(0, p_x.shape[0], step = 1): 
         for t in t_vec:
-            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'o') 
+            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x') 
     
     ax3d.set_xlabel('X') 
     ax3d.set_ylabel('Y') 
@@ -87,13 +88,13 @@ def plot_results_traj(t_vec , p_x, p_y, p_z):
     fig = plt.figure()
     
     for p in np.arange(0, p_x.shape[0], step = 1): 
-        for t in t_vec:
+        for t in t_vec: 
             plt.plot(t * dt, p_x[p, t], 'rx')
             plt.plot(t * dt, p_y[p, t], 'go')
             plt.plot(t * dt, p_z[p, t], 'b*') 
 
 @jit(nopython = True, cache = True) 
-def simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t, drift = False, sigma):
+def simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t, sigma, drift = False):
     """ 
     Simulates 3D Brownian diffusion with/without drift. 
     """
@@ -117,6 +118,7 @@ def simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increme
             p_y[p, ti] = p_y[p, ti - 1] + increment_y[p, ti] + drift_y 
             p_z[p, ti] = p_z[p, ti - 1] + increment_z[p, ti] + drift_z 
             
+            # Fix: pass in current position for current particle p at current time step ti and check whether boundary condition(s) are met.... 
             #p_x[p, ti], p_y[p, ti], p_z[p, ti] = square_bounds_brownian(p_x[p, ti], p_y[p, ti], p_z[p, ti], 0, 0, 0, x_dim, y_dim, z_dim, sigma) 
     
     return p_x, p_y, p_z
@@ -127,33 +129,33 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, dt, x0, y0, z0, gamma_H):
     Simulates 3D fractional Brownian motion. 
     """
 
-    incx = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (0*M + t.shape[0]))) 
-    incy = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (0*M + t.shape[0]))) 
-    incz = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (0*M + t.shape[0]))) 
+    incx = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0]))) 
+    incy = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0]))) 
+    incz = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * (M + t.shape[0]))) 
 
-    p_x = np.zeros(shape = (num_part, n * (0*M + t.shape[0]))) 
-    p_y = np.zeros(shape = (num_part, n * (0*M + t.shape[0]))) 
-    p_z = np.zeros(shape = (num_part, n * (0*M + t.shape[0]))) 
+    p_x = np.zeros(shape = (num_part, n * (M + t.shape[0]))) 
+    p_y = np.zeros(shape = (num_part, n * (M + t.shape[0]))) 
+    p_z = np.zeros(shape = (num_part, n * (M + t.shape[0]))) 
 
     # Generate initial conditions
-    p_x[:, 0] = x0 + 1 * np.random.random(size = (1, num_part)) 
-    p_y[:, 0] = y0 + 1 * np.random.random(size = (1, num_part)) 
-    p_z[:, 0] = z0 + 1 * np.random.random(size = (1, num_part)) 
+    p_x[:, 0] = x0 + 10 * np.random.random(size = (1, num_part)) 
+    p_y[:, 0] = y0 + 10 * np.random.random(size = (1, num_part)) 
+    p_z[:, 0] = z0 + 10 * np.random.random(size = (1, num_part)) 
 
     const = (n ** - H)/ gamma_H 
-    check_x = np.zeros(shape = (num_part, n * (0*M + t.shape[0])))
-    check_y = np.zeros(shape = (num_part, n * (0*M + t.shape[0])))
-    check_z = np.zeros(shape = (num_part, n * (0*M + t.shape[0])))
+    check_x = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    check_y = np.zeros(shape = (num_part, n * (M + t.shape[0])))
+    check_z = np.zeros(shape = (num_part, n * (M + t.shape[0])))
     
     for p in np.arange(0, num_part, step = 1): 
         for ti in t:
 
-            s1_x = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 0)]).sum() 
-            s2_x = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + n * (0*M - 1 + ti) - i]) for i in range(1, 0 + n * (M - 1))]).sum() 
-            s1_y= np.array([ ((i ** (H - 0.5)) * incy[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 0)]).sum() 
-            s2_y = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incy[p, 1 + n * (0*M - 1 + ti) - i]) for i in range(1, 0 + n * (M - 1))]).sum() 
-            s1_z = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 0)]).sum() 
-            s2_z = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + n * (0*M - 1 + ti) - i]) for i in range(1, 0 + n * (M - 1))]).sum() 
+            s1_x = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 1)]).sum() 
+            s2_x = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
+            s1_y= np.array([ ((i ** (H - 0.5)) * incy[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 1)]).sum() 
+            s2_y = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incy[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
+            s1_z = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + n * (0*M + ti) - i]) for i in range(1, n + 1)]).sum() 
+            s2_z = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + n * (M - 1 + ti) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
 
             p_x[p, ti] = p_x[p, ti - 1] + const * (s1_x + s2_x) 
             p_y[p, ti] = p_y[p, ti - 1] + const * (s1_y + s2_y) 
@@ -182,16 +184,16 @@ dt = (t_end - t_0) / n_steps
 
 H = args.hurst_exp
 gamma_H = gamma(H + 0.5)
-n = 3
-M = 300
+n = args.n_time
+M = 200
 
 D = 1
 sigma = np.sqrt(2 * dt * D)
 
 # Generate origin coordinates
 origin = x_dim / 2
-x0 = origin
-y0 = origin
+x0 = origin 
+y0 = origin 
 z0 = origin 
 
 # Generate Brownian increments - put inside function
@@ -210,27 +212,26 @@ p_y[:, 0] = y0 + 5 * np.random.random(size = (1, num_part))
 p_z[:, 0] = z0 + 5 * np.random.random(size = (1, num_part)) 
 
 # Create time vector for simulation 
-t_vec = np.arange(start = t_0 + 1, stop = 0 + n * (n_steps + M), step = 1) # 2800 size
-# Call simulation functions 
 
-#p_x, p_y, p_z = simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t_vec, drift = False, sigma) 
-
-p_x_frac, p_y_frac, p_z_frac, check_x, check_y, check_z = simulate_fractionalbrownian(num_part, H, M, n, t_vec, dt, x0, y0, z0, gamma_H)
+# If we choose n = 1 we do normal Brownian diffusion 
+if n == 1:
+    t = np.arange(start = t_0 + 1, stop = 1 + n_steps, step = 1) 
+    p_x, p_y, p_z = simulate_brownian(num_part, p_x, p_y, p_z, increment_x, increment_y, increment_z, dt, t, sigma, drift = False) 
+    plot_results_3d(t, p_x, p_y, p_z) 
+    plot_results_traj(t, p_x, p_y, p_z) 
+else: 
+    t_vec = np.arange(start = t_0 + 1, stop = 1 + n * (n_steps + M), step = 1) 
+    p_x_frac, p_y_frac, p_z_frac, check_x, check_y, check_z = simulate_fractionalbrownian(num_part, H, M, n, t_vec, dt, x0, y0, z0, gamma_H)
+    plot_results_3d(t_vec, p_x_frac, p_y_frac, p_z_frac)
+    plot_results_traj(t_vec, p_x_frac, p_y_frac, p_z_frac)
 
 fig = plt.figure()
 for p in np.arange(0, check_x.shape[0], step = 1): 
     for t in t_vec: 
-        plt.plot(dt*(t), check_x[p, t], 'ro')
-        plt.plot(dt*(t), check_y[p, t], 'go')
-        plt.plot(dt*(t), check_z[p, t], 'bo') 
-#plt.show()
-plot_results_3d(t_vec, p_x_frac, p_y_frac, p_z_frac)
-plot_results_traj(t_vec, p_x_frac, p_y_frac, p_z_frac)
+        plt.plot(dt*(t), check_x[p, t], 'rx')
+        plt.plot(dt*(t), check_y[p, t], 'gx')
+        plt.plot(dt*(t), check_z[p, t], 'bx') 
 plt.show()
 
-plotting = 0
-if plotting == 1: 
-    plot_results_3d(t_vec , p_x, p_y, p_z)
-    plot_results_traj(t_vec , p_x, p_y, p_z)
-    plt.show()
+
 
