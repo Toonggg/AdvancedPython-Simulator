@@ -16,3 +16,4 @@ To use the code, I advise using (Mini)conda and/or pip and installing any necess
 ### References
 * [mplot3d](https://matplotlib.org/stable/tutorials/toolkits/mplot3d.html)
 * [numba](http://numba.pydata.org/numba-doc/latest/user/jit.html)
+* Fractals, Jens Feder (1988). 
