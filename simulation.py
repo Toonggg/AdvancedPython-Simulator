@@ -1,19 +1,17 @@
 # Importing modules 
-# Choose different matplotlib back-end
-#import matplotlib
-#matplotlib.use('Qt5agg')
 import argparse
+import numpy as np
+import scipy
+import h5py 
 import os, sys
 import matplotlib.pyplot as plt 
 from mpl_toolkits import mplot3d
-from numba import jit 
 from scipy.special import gamma
-import numpy as np
-import scipy
-import h5py
+from numba import jit 
 
+# Parser arguments
 parser = argparse.ArgumentParser(description = 'Single-particle diffusion simulation')
-parser.add_argument('Test', type = str, help = 'Test. (str)', default = 'Test')
+parser.add_argument('Test', type = str, help = 'Test. (str)', default = 'Test') # what should be put here??? 
 
 parser.add_argument('-nparts', '--num-part', type = int, help = 'Number of particles to simulate (int).', default = 1) 
 parser.add_argument('-dimx', '--dim-x', type = int, help = 'Dimensions in x-coordinate (int).', default = 1024)
@@ -28,7 +26,7 @@ parser.add_argument('-n', '--n-time', type = int, help = 'Division of integer ti
 parser.add_argument('-hurst', '--hurst-exp', type = float, help = 'Hurst exponent (float).', default = 0.5)
 args = parser.parse_args()
 
-##################### Functions 
+##################### Functions #####################
 # Reflective boundary conditions 
 @jit(nopython = True, cache = True)
 def square_bounds_brownian(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z, sigma):
@@ -192,6 +190,7 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, dt, x0, y0, z0, gamma_H):
             p_z[p, ti] = p_z[p, ti - 1] + const * (s1_z + s2_z) 
 
     return p_x, p_y, p_z
+##################### Functions #####################
 
 # Parameters of the simulation 
 num_part = args.num_part
