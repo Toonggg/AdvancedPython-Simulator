@@ -10,7 +10,8 @@ To use the code, I advise using (Mini)conda and/or pip and installing any necess
   * Superdiffusion: 0.5 < H < 1.0 
 
 ### TO-DO
-* Add plot showing MSD (Mean Squared Displacement).
+* Add calculations/plots showing MSD (Mean Squared Displacement).
+* Add calculations/plots showing MSS (Moment Scaling Spectrum).
 * Implement collision of particle(s). 
 
 ### References
