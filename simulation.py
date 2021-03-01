@@ -26,89 +26,7 @@ parser.add_argument('-n', '--n-time', type = int, help = 'Division of integer ti
 parser.add_argument('-hurst', '--hurst-exp', type = float, help = 'Hurst exponent (float).', default = 0.5)
 args = parser.parse_args()
 
-##################### Functions #####################
-# Reflective boundary conditions 
-@jit(nopython = True, cache = True)
-def square_bounds_brownian(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z, sigma):
-    """ 
-    Defines a square simulation boundary. 
-    """
-    num_p = px.shape[0]
-    ti_p = px.shape[1]
-
-    if px < min_x or px > max_x: 
-        px = np.random.normal(loc = 0.0, scale = sigma)
-
-    if py < min_y or py > max_y:
-        py = np.random.normal(loc = 0.0, scale = sigma)
-
-    if pz < min_z or pz > max_z:
-        pz = np.random.normal(loc = 0.0, scale = sigma)
-
-    return px, py, pz
-
-@jit(nopython = True, cache = True)
-def square_bounds_fbm(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z):
-    """ 
-    Defines a square simulation boundary. 
-    """
-
-    return px, py, pz
-
-@jit(nopython = True, cache = True) 
-def calculate_msd(pos_x, pos_y, pos_z):
-    """ 
-    Calculates MSD (mean squared displacement) of particle trajectories. 
-    """
-
-    return None
-
-@jit(nopython = True, cache = True) 
-def calculate_mss(pos_x, pos_y, pos_z):
-    """ 
-    Calculates MSS (moment scaling spectrum) of particle trajectories. 
-    """
-
-    return None
-
-def plot_msd(t_vec , p_x, p_y, p_z): 
-    """
-    Plots MSD  of particle trajectories. 
-    """
-    print("MSD")
-
-def plot_mss(t_vec , p_x, p_y, p_z): 
-    """
-    Plots MSS  of particle trajectories. 
-    """
-    print("MSS")
-
-def plot_results_3d(t_vec , p_x, p_y, p_z): 
-    fig = plt.figure()
-    ax3d = plt.axes(projection = '3d') 
-    
-    for p in np.arange(0, p_x.shape[0], step = 1): 
-        for t in t_vec:
-            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x') 
-    
-    ax3d.set_xlabel('X') 
-    ax3d.set_ylabel('Y') 
-    ax3d.set_zlabel('Z') 
-
-def plot_results_traj(t_vec , p_x, p_y, p_z): 
-    fig = plt.figure()
-    ax = plt.axes() 
-    
-    for p in np.arange(0, p_x.shape[0], step = 1): 
-        for t in t_vec: 
-            plt.plot(t * 1, p_x[p, t], 'rx')
-            plt.plot(t * 1, p_y[p, t], 'gx')
-            plt.plot(t * 1, p_z[p, t], 'bx') 
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Position')
-    ax.set_ylim(200, 800)
-    ax.set_title()
-
+##################### Functions BEGINNING #####################
 @jit(nopython = True, cache = True) 
 def simulate_brownian(num_part, dt, t, sigma, drift = False):
     """ 
@@ -190,7 +108,95 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, dt, x0, y0, z0, gamma_H):
             p_z[p, ti] = p_z[p, ti - 1] + const * (s1_z + s2_z) 
 
     return p_x, p_y, p_z
-##################### Functions #####################
+
+@jit(nopython = True, cache = True)
+def square_bounds_brownian(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z, sigma):
+    """ 
+    Defines a square simulation boundary. 
+    """
+    num_p = px.shape[0]
+    ti_p = px.shape[1]
+
+    if px < min_x or px > max_x: 
+        px = np.random.normal(loc = 0.0, scale = sigma)
+
+    if py < min_y or py > max_y:
+        py = np.random.normal(loc = 0.0, scale = sigma)
+
+    if pz < min_z or pz > max_z:
+        pz = np.random.normal(loc = 0.0, scale = sigma)
+
+    return px, py, pz
+
+@jit(nopython = True, cache = True)
+def square_bounds_fbm(px , py, pz, min_x, min_y, min_z, max_x, max_y, max_z):
+    """ 
+    Defines a square simulation boundary. 
+    """
+
+    return px, py, pz
+
+@jit(nopython = True, cache = True) 
+def calculate_msd(pos_x, pos_y, pos_z):
+    """ 
+    Calculates MSD (mean squared displacement) of particle trajectories. 
+    """
+
+    return None
+
+@jit(nopython = True, cache = True) 
+def calculate_mss(pos_x, pos_y, pos_z):
+    """ 
+    Calculates MSS (moment scaling spectrum) of particle trajectories. 
+    """
+
+    return None
+
+def plot_msd(t_vec , p_x, p_y, p_z): 
+    """
+    Plots MSD  of particle trajectories. 
+    """
+    print("MSD")
+
+def plot_mss(t_vec , p_x, p_y, p_z): 
+    """
+    Plots MSS  of particle trajectories. 
+    """
+    print("MSS")
+
+def plot_results_3d(t_vec , p_x, p_y, p_z): 
+    fig = plt.figure()
+    ax3d = plt.axes(projection = '3d') 
+    
+    for p in np.arange(0, p_x.shape[0], step = 1): 
+        for t in t_vec:
+            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x') 
+    
+    ax3d.set_xlabel('X') 
+    ax3d.set_ylabel('Y') 
+    ax3d.set_zlabel('Z') 
+
+def plot_results_traj(t_vec , p_x, p_y, p_z): 
+    fig = plt.figure()
+    ax = plt.axes() 
+    
+    for p in np.arange(0, p_x.shape[0], step = 1): 
+        for t in t_vec: 
+            plt.plot(t * 1, p_x[p, t], 'rx')
+            plt.plot(t * 1, p_y[p, t], 'gx')
+            plt.plot(t * 1, p_z[p, t], 'bx') 
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Position')
+    ax.set_ylim(200, 800)
+    ax.set_title()
+
+def save_trajectories():
+    """
+
+    """
+
+    return None
+##################### Functions END ##################### 
 
 # Parameters of the simulation 
 num_part = args.num_part
@@ -211,7 +217,7 @@ D = 1
 sigma = np.sqrt(2 * dt * D)
 gamma_H = gamma(H + 0.5)
 
-# Define origin of simulation
+# Define origin of simulation 
 origin = x_dim / 2 
 x0 = origin 
 y0 = origin 
