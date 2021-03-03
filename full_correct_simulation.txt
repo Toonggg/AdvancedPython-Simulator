@@ -637,7 +637,7 @@ for simCount = 1 : size(selectedX , 1)
                 %sumSqDIn = sum(dXIn^2 + dYIn^2);
                 sumSqDIn = sum(dXIn^2 + dYIn^2 + dZIn^2);
                 
-                MSDIn(nn) = MSDIn(nn) + sumSqDIn;
+                MSDIn(nn) = MSDIn(nn) + sumSqDIn;   
                 
             end
             
@@ -709,7 +709,7 @@ for simCount = 1 : size(selectedX , 1)
                 
             end
             
-            MSDOut(nn) = MSDOut(nn) / (size(indTOut , 2)  -  nn);
+            MSDOut(nn) = MSDOut(nn) / (size(indTOut , 2)  -  nn); 
             
         end
         
