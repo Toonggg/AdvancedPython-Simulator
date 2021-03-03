@@ -22,6 +22,7 @@ parser.add_argument('-t0', '--t-start', type = int, help = 'Start of simulation 
 parser.add_argument('-t1', '--t-end', type = int, help = 'End of simulation (int).', default = 1) 
 
 parser.add_argument('-nsteps', '--num-steps', type = int, help = 'Number of time steps to simulate (int).', default = 100)
+parser.add_argument('-M', '--num-M', type = int, help = 'Range covered in time (int).', default = 300)
 parser.add_argument('-n', '--n-time', type = int, help = 'Division of integer time (int).', default = 1)
 parser.add_argument('-hurst', '--hurst-exp', type = float, help = 'Hurst exponent (float).', default = 0.5)
 args = parser.parse_args()
@@ -175,20 +176,33 @@ def plot_results_3d(t_vec , p_x, p_y, p_z):
     ax3d.set_xlabel('X') 
     ax3d.set_ylabel('Y') 
     ax3d.set_zlabel('Z') 
+    ax3d.set_title('3D particle trajectories')
 
-def plot_results_traj(t_vec , p_x, p_y, p_z): 
+def plot_results_2d(t_vec , p_1, p_2, d_1 = 'X', d_2 = 'Y'): 
     fig = plt.figure()
     ax = plt.axes() 
     
-    for p in np.arange(0, p_x.shape[0], step = 1): 
+    for p in np.arange(0, p_1.shape[0], step = 1): 
         for t in t_vec: 
-            plt.plot(t * 1, p_x[p, t], 'rx')
-            plt.plot(t * 1, p_y[p, t], 'gx')
-            plt.plot(t * 1, p_z[p, t], 'bx') 
-    ax.set_xlabel('Time')
+            plt.plot(p_1[p, t], p_2[p, t], 'rx')
+    ax.grid(b = 'True', which = 'major')
+    ax.set_xlabel(d_1)
+    ax.set_ylabel(d_2)
+    ax.set_title('2D particle trajectories')
+
+def plot_results_traj_3d(t_vec , p_1, p_2, p_3): 
+    fig = plt.figure()
+    ax = plt.axes() 
+    
+    for p in np.arange(0, p_1.shape[0], step = 1): 
+        for t in t_vec: 
+            plt.plot(t * 1, p_1[p, t], 'rx')
+            plt.plot(t * 1, p_2[p, t], 'gx')
+            plt.plot(t * 1, p_3[p, t], 'bx') 
+    ax.set_xlabel('Time') 
     ax.set_ylabel('Position')
-    ax.set_ylim(200, 800)
-    ax.set_title()
+    ax.set_ylim(origin - 500 , origin + 500)
+    ax.set_title('Trajectories')
 
 def save_trajectories():
     """
@@ -212,7 +226,7 @@ dt = (t_end - t_0) / n_steps
 H = args.hurst_exp
 n = args.n_time
 
-M = 300 
+M = args.num_M
 D = 1 
 sigma = np.sqrt(2 * dt * D)
 gamma_H = gamma(H + 0.5)
@@ -229,12 +243,14 @@ if n == 1:
     p_x, p_y, p_z = simulate_brownian(num_part, dt, t, sigma, drift = True) 
 
     plot_results_3d(t, p_x, p_y, p_z) 
-    plot_results_traj(t, p_x, p_y, p_z) 
+    plot_results_2d(t_vec, p_x, p_z, d_1 = 'X', d_2 = 'Z') 
+    plot_results_traj_3d(t, p_x, p_y, p_z) 
 else: 
     t_vec = np.arange(start = t_0 + 1, stop = n * (n_steps + M), step = 1) 
     p_x_frac, p_y_frac, p_z_frac = simulate_fractionalbrownian(num_part, H, M, n, t_vec, dt, x0, y0, z0, gamma_H)
 
     plot_results_3d(t_vec, p_x_frac, p_y_frac, p_z_frac)
-    plot_results_traj(t_vec, p_x_frac, p_y_frac, p_z_frac)
+    plot_results_2d(t_vec, p_x_frac, p_z_frac, d_1 = 'X', d_2 = 'Z')
+    plot_results_traj_3d(t_vec, p_x_frac, p_y_frac, p_z_frac)
 
 plt.show() 
