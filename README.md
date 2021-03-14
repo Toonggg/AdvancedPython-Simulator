@@ -10,7 +10,7 @@ Additional modules that will be needed are mentioned below. The simulation of 3D
   * Superdiffusion: 0.5 < H < 1.0 
 
 ### TO-DO
-* Add calculations/plots showing MSD (Mean Squared Displacement).
+* Fix MSD calculation and fBM calculation.
 * Add calculations/plots showing MSS (Moment Scaling Spectrum).
 * Implement collision of particle(s). 
 
