@@ -6,9 +6,12 @@ import h5py
 import os, sys
 import matplotlib.pyplot as plt 
 from mpl_toolkits import mplot3d
+from matplotlib.pyplot import cm
 from scipy.special import gamma
 from numba import jit
 import tkinter
+
+# (1) https://stackoverflow.com/questions/4971269/how-to-pick-a-new-color-for-each-plotted-line-within-a-figure-in-matplotlib
 
 # Parser arguments
 parser = argparse.ArgumentParser(description = 'Single-particle diffusion simulation') 
@@ -48,14 +51,14 @@ def simulate_brownian(num_part, dt, time_steps, x0, y0, z0, sigma, drift = False
         drift_z = 0 
 
     # Generate Brownian increments 
-    increment_x = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps)) 
-    increment_y = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps)) 
-    increment_z = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps)) 
+    increment_x = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps - 1)) 
+    increment_y = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps - 1)) 
+    increment_z = np.random.normal(loc = 0.0, scale = sigma, size = (num_part, time_steps - 1)) 
 
     # Pre-allocation of memory for particle positions 
-    p_x = np.zeros(shape = (num_part, time_steps)) 
-    p_y = np.zeros(shape = (num_part, time_steps))
-    p_z = np.zeros(shape = (num_part, time_steps))
+    p_x = np.zeros(shape = (num_part, time_steps - 1)) 
+    p_y = np.zeros(shape = (num_part, time_steps - 1))
+    p_z = np.zeros(shape = (num_part, time_steps - 1))
 
     # Generate initial position of particle(s) 
     p_x[:, 0] = x0 + 20 * np.random.random(size = (1, num_part)) 
@@ -86,14 +89,12 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H):
     p_z = np.zeros(shape = (num_part, t.shape[0])) 
 
     # Generate initial position of particle(s)
-    p_x[:, 0] = x0 + 20 * np.random.random(size = (1, num_part)) 
-    p_y[:, 0] = y0 + 20 * np.random.random(size = (1, num_part)) 
-    p_z[:, 0] = z0 + 20 * np.random.random(size = (1, num_part)) 
-
-    const = (n ** - H)/ gamma_H 
+    p_x[:, 0] = x0 + 10 * np.random.random(size = (1, num_part)) 
+    p_y[:, 0] = y0 + 10 * np.random.random(size = (1, num_part)) 
+    p_z[:, 0] = z0 + 10 * np.random.random(size = (1, num_part)) 
     
     for p in np.arange(0, num_part, step = 1): 
-        for ti in t: 
+        for ti in np.arange(start = 1, stop = t.shape[0], step = 1): 
 
             s1_x = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + ti - i]) for i in range(1, n + 1)]).sum() 
             s2_x = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + ti - n - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
@@ -102,9 +103,9 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H):
             s1_z = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + ti - i]) for i in range(1, n + 1)]).sum() 
             s2_z = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + ti - n - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
 
-            icx = const * (s1_x + s2_x) 
-            icy = const * (s1_y + s2_y) 
-            icz = const * (s1_z + s2_z) 
+            icx = gamma_H * (s1_x + s2_x) 
+            icy = gamma_H * (s1_y + s2_y) 
+            icz = gamma_H * (s1_z + s2_z) 
 
             p_x[p, ti] = p_x[p, ti - 1] + icx 
             p_y[p, ti] = p_y[p, ti - 1] + icy 
@@ -132,25 +133,25 @@ def square_boundaries(px , py, pz, incx, incy, incz, min_x, min_y, min_z, max_x,
     return pcx, pcy, pcz 
 
 @jit(nopython = True , cache = True) 
-def calculate_tamsd(pos_x, pos_y, pos_z):
+def calc_tamsd(pos_x, pos_y, pos_z):
     """ 
-    Calculates TAMSD (time averaged mean squared displacement) of particle trajectories. 
+    Calculates TAMSD (time averaged mean squared displacement) of particle trajectories with overlapping displacements. 
     """
     particles = pos_x.shape[0]
     N = pos_x.shape[1] 
     tamsd = np.zeros(shape = (particles, N - 1)) 
 
     for p in np.arange(start = 0, stop = particles, step = 1): 
-        for n in np.arange(start = 0, stop = N, step = 1): 
+        for n in np.arange(start = 1, stop = N, step = 1): 
             sumdis = np.array([((pos_x[p, i + n] - pos_x[p, i]) ** 2 + (pos_y[p, i + n] - pos_y[p, i]) ** 2 + (pos_z[p, i + n] - pos_z[p, i]) ** 2) for i in np.arange(start = 1, stop = N - n, step = 1)]).sum()
             tamsd[p, n] = sumdis / (N - n) 
     return tamsd 
 
 def plot_tamsd(dt, msd, label): 
     """
-    Plots TAMSD  of particle trajectories. 
+    Plots the TAMSD  of particle(s). 
     """
-    fig, ax = plt.subplots(1, 2, figsize = (8, 8))
+    fig, ax = plt.subplots(1, 2, figsize = (10, 10))
     av_msd = np.mean(msd, axis = 0)
 
     for p in np.arange(0, msd.shape[0], step = 1):
@@ -163,7 +164,10 @@ def plot_tamsd(dt, msd, label):
     ax[1].set_xlabel('Time lag')
     ax[1].set_ylabel('TAMSD [pix^2]')
     ax[1].set_title('Averaged TAMSDs: H = ' + str(label)) 
-    ax[0].set_ylim([0, 30e3])
+    ax[0].set_xlim([0, np.max(t)])
+    ax[1].set_xlim([0, np.max(t)])
+    ax[0].set_ylim([0, np.max(msd)]) 
+    ax[1].set_ylim([0, np.max(av_msd)])
 
 @jit(nopython = True, cache = True) 
 def calculate_mss(pos_x, pos_y, pos_z):
@@ -186,32 +190,60 @@ def plot_mss(dt, mss):
     """
     print("MSS")
 
-def plot_results_3d(p_x, p_y, p_z): 
-    fig = plt.figure(figsize = (10, 10))
+def plot_results_3d(p_x, p_y, p_z, custom_name = 0.5): 
+    """
+    Plots a 3D view of the positions of the particle(s) centered around the origin. 
+    """
+    plt.figure(figsize = (10, 10))
     ax3d = plt.axes(projection = '3d') 
+
+    color=iter(cm.rainbow(np.linspace(0,1,p_x.shape[0]))) # (1)
+    labels = ['Particle ' + str(pl+1)  for pl in np.arange(0, p_x.shape[0], step = 1)]
     
     for p in np.arange(0, p_x.shape[0], step = 1): 
+        c = next(color) # (1)
         for t in np.arange(0, p_x.shape[1], step = 1): 
-            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'o') 
-
+            ax3d.plot3D(p_x[p, t], p_y[p, t], p_z[p, t], 'x', c = c, label = labels[p]) 
+    legend_without_duplicate_labels(ax3d)
     ax3d.set_xlabel('X') 
     ax3d.set_ylabel('Y') 
     ax3d.set_zlabel('Z') 
-    ax3d.set_title('3D particle trajectories')
+    ax3d.set_xlim([origin-150,origin+150])
+    ax3d.set_ylim([origin-150,origin+150])
+    ax3d.set_zlim([origin-150,origin+150])
+    ax3d.set_title('3D particle trajectories - H = ' + str(custom_name))
+
+# Code to define unique legend entries (Fon's answer):
+# Credits: https://stackoverflow.com/questions/19385639/duplicate-items-in-legend-in-matplotlib 
+def legend_without_duplicate_labels(ax):
+    handles, labels = ax.get_legend_handles_labels()
+    unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+    ax.legend(*zip(*unique))
 
 def plot_results_2d(p_1, p_2, d_1 = 'X', d_2 = 'Y'): 
-    fig = plt.figure(figsize = (10, 10))
+    """
+    Plots a 2D view of the particle(s). 
+    """
+    plt.figure(figsize = (10, 10))
     ax = plt.axes() 
-    
+
+    color=iter(cm.rainbow(np.linspace(0,1,p_1.shape[0]))) # (1)
+    labels = ['Particle ' + str(pl+1)  for pl in np.arange(0, p_1.shape[0], step = 1)]
+
     for p in np.arange(0, p_1.shape[0], step = 1): 
+        c = next(color) # (c)
         for t in np.arange(0, p_1.shape[1], step = 1): 
-            plt.plot(p_1[p, t], p_2[p, t], 'rx')
+            plt.plot(p_1[p, t], p_2[p, t], 'x', c = c, label = labels[p])
+    legend_without_duplicate_labels(ax)
     ax.grid(b = 'True', which = 'major')
-    ax.set_xlabel(d_1)
+    ax.set_xlabel(d_1) 
     ax.set_ylabel(d_2)
     ax.set_title('2D particle trajectories')
 
 def plot_results_traj_3d(p_1, p_2, p_3, xmin, xmax, ymin, ymax, zmin, zmax): 
+    """
+    Plots the X,Y, and Z positions of the particle(s) in 3 separate subplots and a combination subplot. 
+    """
     fig, ax = plt.subplots(2 , 2, figsize = (10, 10))
     
     for p in np.arange(0, p_1.shape[0], step = 1): 
@@ -231,9 +263,9 @@ def plot_results_traj_3d(p_1, p_2, p_3, xmin, xmax, ymin, ymax, zmin, zmax):
     ax[1,0].set_title('Z') 
     ax[1,0].set_ylim([zmin, zmax])
     ax[1,1].set_title('Positions combined') 
-    ax[1,1].set_ylim([zmin, zmax])
+    ax[1,1].set_ylim([np.array([xmin, ymin, zmin]).min(), np.array([xmax, ymax, zmax]).max()])
 
-def save_trajectories():
+def save_trajectories(): 
     """
 
     """
@@ -249,13 +281,12 @@ z_dim = args.dim_z
 
 t0 = args.t_start
 t1 = args.t_end
-n_steps = args.num_steps
+n_steps = args.num_steps 
 
 H = args.hurst_exp 
 n = args.n_time
 
 M = args.num_M
-gamma_H = gamma(H + 0.5)
 
 # Define origin of simulation 
 origin = x_dim // 2 
@@ -272,11 +303,11 @@ if n == 1:
     sigma = np.sqrt(2 * dt * D) 
     
     p_x, p_y, p_z = simulate_brownian(num_part, dt, t.shape[0], x0, y0, z0, sigma, drift = False) 
-    msd = calculate_tamsd(p_x, p_y, p_z) 
+    msd = calc_tamsd(p_x, p_y, p_z) 
 
     #Plotting results
-    plot_tamsd(dt, msd) 
-    #plot_results_2d(p_x, p_z, d_1 = 'X', d_2 = 'Z') 
+    plot_tamsd(dt, msd, label = 0.5) 
+    plot_results_2d(p_x, p_y, d_1 = 'X', d_2 = 'Y') 
     plot_results_3d(p_x, p_y, p_z) 
     plot_results_traj_3d(p_x, p_y, p_z, np.min(p_x), np.max(p_x), np.min(p_y), np.max(p_y), np.min(p_z), np.max(p_z)) 
 else: 
@@ -285,19 +316,16 @@ else:
     t_phys = np.linspace(start = t0, stop = t1, num = frac_steps) # physical time 
     dt_frac = (t1 - t0) / frac_steps 
 
+    gamma_H = (n ** -H) / (gamma(H + 0.5))
+    
     p_x_frac, p_y_frac, p_z_frac = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H) 
-    p_x_h, p_y_h, p_z_h = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma(0.9+0.5)) 
-    p_x, p_y, p_z = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma(0.1+0.5)) 
-    msd_frac = calculate_tamsd(p_x_frac, p_y_frac, p_z_frac) 
-    msd_frac_low= calculate_tamsd(p_x, p_y, p_z) 
-    msd_frac_high= calculate_tamsd(p_x_h, p_y_h, p_z_h) 
+
+    msd_frac = calc_tamsd(p_x_frac, p_y_frac, p_z_frac) 
 
     # Plotting results 
-    plot_tamsd(dt_frac, msd_frac_low, label = 0.1) 
-    plot_tamsd(dt_frac, msd_frac, label = 0.5) 
-    plot_tamsd(dt_frac, msd_frac_high, label = 0.9) 
-    #plot_results_2d(p_x_frac, p_z_frac, d_1 = 'X', d_2 = 'Z') 
-    #plot_results_3d(p_x_frac, p_y_frac, p_z_frac) 
+    #plot_tamsd(dt_frac, msd_frac, label = H) 
+    plot_results_2d(p_x_frac, p_z_frac, d_1 = 'X', d_2 = 'Z') 
+    plot_results_3d(p_x_frac, p_y_frac, p_z_frac, custom_name = H) 
     #plot_results_traj_3d(p_x_frac, p_y_frac, p_z_frac, np.min(p_x_frac), np.max(p_x_frac), np.min(p_y_frac), np.max(p_y_frac), np.min(p_z_frac), np.max(p_z_frac)) 
 
 plt.show() 
