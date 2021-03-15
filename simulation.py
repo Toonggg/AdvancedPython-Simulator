@@ -76,14 +76,14 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H):
     Simulates 3D fractional Brownian motion.    
     """
     # Generate zero mean and unit variance increments 
-    incx = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * t.shape[0])) 
-    incy = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * t.shape[0])) 
-    incz = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, n * t.shape[0])) 
+    incx = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, t.shape[0])) 
+    incy = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, t.shape[0])) 
+    incz = np.random.normal(loc = 0.0, scale = 1.0, size = (num_part, t.shape[0])) 
 
     # Pre-allocation of memory for particle positions 
-    p_x = np.zeros(shape = (num_part, n * t.shape[0])) 
-    p_y = np.zeros(shape = (num_part, n * t.shape[0])) 
-    p_z = np.zeros(shape = (num_part, n * t.shape[0])) 
+    p_x = np.zeros(shape = (num_part, t.shape[0])) 
+    p_y = np.zeros(shape = (num_part, t.shape[0])) 
+    p_z = np.zeros(shape = (num_part, t.shape[0])) 
 
     # Generate initial position of particle(s)
     p_x[:, 0] = x0 + 20 * np.random.random(size = (1, num_part)) 
@@ -95,12 +95,12 @@ def simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H):
     for p in np.arange(0, num_part, step = 1): 
         for ti in t: 
 
-            s1_x = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + n * ti - i]) for i in range(1, n + 1)]).sum() 
-            s2_x = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + n * (ti - 1) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
-            s1_y = np.array([ ((i ** (H - 0.5)) * incy[p, 1 + n * ti - i]) for i in range(1, n + 1)]).sum() 
-            s2_y = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incy[p, 1 + n * (ti - 1) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
-            s1_z = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + n * ti - i]) for i in range(1, n + 1)]).sum() 
-            s2_z = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + n * (ti - 1) - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
+            s1_x = np.array([ ((i ** (H - 0.5)) * incx[p, 1 + ti - i]) for i in range(1, n + 1)]).sum() 
+            s2_x = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incx[p, 1 + ti - n - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
+            s1_y = np.array([ ((i ** (H - 0.5)) * incy[p, 1 + ti - i]) for i in range(1, n + 1)]).sum() 
+            s2_y = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incy[p, 1 + ti - n - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
+            s1_z = np.array([ ((i ** (H - 0.5)) * incz[p, 1 + ti - i]) for i in range(1, n + 1)]).sum() 
+            s2_z = np.array([ (((n + i) ** (H - 0.5) - i ** (H - 0.5)) * incz[p, 1 + ti - n - i]) for i in range(1, 1 + n * (M - 1))]).sum() 
 
             icx = const * (s1_x + s2_x) 
             icy = const * (s1_y + s2_y) 
@@ -146,7 +146,7 @@ def calculate_tamsd(pos_x, pos_y, pos_z):
             tamsd[p, n] = sumdis / (N - n) 
     return tamsd 
 
-def plot_tamsd(dt, msd): 
+def plot_tamsd(dt, msd, label): 
     """
     Plots TAMSD  of particle trajectories. 
     """
@@ -159,10 +159,11 @@ def plot_tamsd(dt, msd):
             ax[1].plot(t, av_msd[t], 'ro')
     ax[0].set_xlabel('Time lag')
     ax[0].set_ylabel('TAMSD [pix^2]')
-    ax[0].set_title('Individual TAMSDs')
+    ax[0].set_title('Individual TAMSDs: H = ' + str(label))
     ax[1].set_xlabel('Time lag')
     ax[1].set_ylabel('TAMSD [pix^2]')
-    ax[1].set_title('Averaged TAMSDs') 
+    ax[1].set_title('Averaged TAMSDs: H = ' + str(label)) 
+    ax[0].set_ylim([0, 30e3])
 
 @jit(nopython = True, cache = True) 
 def calculate_mss(pos_x, pos_y, pos_z):
@@ -265,10 +266,10 @@ z0 = origin
 # If we choose n = 1 we do normal Brownian diffusion, else do fBM 
 if n == 1:
     D = 1
-    t = np.arange(start = 0, stop = n_steps, step = 1) # simulation time
-    t_phys = np.linspace(start = t0, stop = t1, num = n_steps) # physical time
+    t = np.arange(start = 0, stop = n_steps, step = 1) # simulation time 
+    t_phys = np.linspace(start = t0, stop = t1, num = n_steps) # physical time 
     dt = (t1 - t0) / n_steps 
-    sigma = np.sqrt(2 * dt * D)
+    sigma = np.sqrt(2 * dt * D) 
     
     p_x, p_y, p_z = simulate_brownian(num_part, dt, t.shape[0], x0, y0, z0, sigma, drift = False) 
     msd = calculate_tamsd(p_x, p_y, p_z) 
@@ -280,20 +281,23 @@ if n == 1:
     plot_results_traj_3d(p_x, p_y, p_z, np.min(p_x), np.max(p_x), np.min(p_y), np.max(p_y), np.min(p_z), np.max(p_z)) 
 else: 
     frac_steps = n * (n_steps + M) 
-    t = np.arange(start = 0, stop = n_steps + M, step = 1) # simulation time
-    print(t.shape)
-    t_phys = np.linspace(start = t0, stop = t1, num = frac_steps) # physical time
-    print(t_phys.shape)
+    t = np.arange(start = 0, stop = frac_steps, step = 1) # simulation time 
+    t_phys = np.linspace(start = t0, stop = t1, num = frac_steps) # physical time 
     dt_frac = (t1 - t0) / frac_steps 
 
-    p_x_frac, p_y_frac, p_z_frac = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H)
-    print(p_x_frac.shape)
+    p_x_frac, p_y_frac, p_z_frac = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma_H) 
+    p_x_h, p_y_h, p_z_h = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma(0.9+0.5)) 
+    p_x, p_y, p_z = simulate_fractionalbrownian(num_part, H, M, n, t, x0, y0, z0, gamma(0.1+0.5)) 
     msd_frac = calculate_tamsd(p_x_frac, p_y_frac, p_z_frac) 
+    msd_frac_low= calculate_tamsd(p_x, p_y, p_z) 
+    msd_frac_high= calculate_tamsd(p_x_h, p_y_h, p_z_h) 
 
-    # Plotting results
-    #plot_tamsd(dt_frac, msd_frac) 
-    #plot_results_2d(p_x_frac, p_z_frac, d_1 = 'X', d_2 = 'Z')
+    # Plotting results 
+    plot_tamsd(dt_frac, msd_frac_low, label = 0.1) 
+    plot_tamsd(dt_frac, msd_frac, label = 0.5) 
+    plot_tamsd(dt_frac, msd_frac_high, label = 0.9) 
+    #plot_results_2d(p_x_frac, p_z_frac, d_1 = 'X', d_2 = 'Z') 
     #plot_results_3d(p_x_frac, p_y_frac, p_z_frac) 
-    plot_results_traj_3d(p_x_frac, p_y_frac, p_z_frac, np.min(p_x_frac), np.max(p_x_frac), np.min(p_y_frac), np.max(p_y_frac), np.min(p_z_frac), np.max(p_z_frac))
+    #plot_results_traj_3d(p_x_frac, p_y_frac, p_z_frac, np.min(p_x_frac), np.max(p_x_frac), np.min(p_y_frac), np.max(p_y_frac), np.min(p_z_frac), np.max(p_z_frac)) 
 
 plt.show() 
