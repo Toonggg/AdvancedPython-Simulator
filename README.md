@@ -10,7 +10,6 @@ Additional modules that will be needed are mentioned below. The simulation of 3D
   * Superdiffusion: 0.5 < H < 1.0 
 
 ### TO-DO
-* Document functions nicely.
 * Organize code into several files to aid readability. 
 * Implement simulation of continuous time random walk (CTRW). 
 * Add calculations/plots showing MSS (Moment Scaling Spectrum).
